@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/worker.dart';
+import '../models/property.dart';
 import '../widgets/side_menu.dart';
 import '../widgets/responsive_layout.dart';
 import 'dashboard/dashboard_screen.dart';
@@ -20,6 +21,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   Worker? _editingWorker;
+  Property? _editingProperty;
 
   void _onEditWorker(Worker worker) {
     setState(() {
@@ -42,6 +44,20 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  void _onEditProperty(Property property) {
+    setState(() {
+      _editingProperty = property;
+      _selectedIndex = 6; // Index of PostListingScreen
+    });
+  }
+
+  void _resetPropertyEdit() {
+    setState(() {
+      _editingProperty = null;
+      _selectedIndex = 5; // Back to Properties inventory
+    });
+  }
+
   List<Widget> get _screens => [
     const DashboardScreen(),
     const AnalysisScreen(),
@@ -51,8 +67,11 @@ class _MainScreenState extends State<MainScreen> {
       onCancel: _resetWorkerEdit,
     ),
     const Center(child: Text('Roles & Skills')),
-    const PropertiesScreen(),
-    const PostListingScreen(),
+    PropertiesScreen(onEdit: _onEditProperty),
+    PostListingScreen(
+      initialProperty: _editingProperty,
+      onComplete: _resetPropertyEdit,
+    ),
     const EarningsScreen(),
     const Center(child: Text('Reports')),
     const Center(child: Text('Settings')),
@@ -67,7 +86,8 @@ class _MainScreenState extends State<MainScreen> {
         onItemSelected: (index) {
           setState(() {
             _selectedIndex = index;
-            if (index == 3) _editingWorker = null;
+            if (index != 3) _editingWorker = null;
+            if (index != 6) _editingProperty = null;
           });
           Navigator.pop(context); // Close drawer on mobile
         },
@@ -99,7 +119,8 @@ class _MainScreenState extends State<MainScreen> {
           onItemSelected: (index) {
             setState(() {
               _selectedIndex = index;
-              if (index == 3) _editingWorker = null;
+              if (index != 3) _editingWorker = null;
+              if (index != 6) _editingProperty = null;
             });
           },
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/service_details.dart';
 import '../models/worker.dart';
 import '../models/property.dart';
 import '../widgets/side_menu.dart';
@@ -7,6 +8,8 @@ import 'dashboard/dashboard_screen.dart';
 import 'dashboard/analysis_screen.dart';
 import 'workers/add_worker_screen.dart';
 import 'workers/workers_list_screen.dart';
+import 'workers/roles_skills_screen.dart';
+import 'workers/add_service_screen.dart';
 import 'listings/post_listing_screen.dart';
 import 'listings/properties_screen.dart';
 import 'finance/earnings_screen.dart';
@@ -22,6 +25,8 @@ class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   Worker? _editingWorker;
   Property? _editingProperty;
+  ServiceDetails? _editingService;
+  bool _isAddingService = false;
 
   void _onEditWorker(Worker worker) {
     setState(() {
@@ -58,24 +63,54 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  void _onEditService(ServiceDetails service) {
+    setState(() {
+      _editingService = service;
+      _isAddingService = true;
+    });
+  }
+
+  void _onAddService() {
+    setState(() {
+      _editingService = null;
+      _isAddingService = true;
+    });
+  }
+
+  void _resetServiceView() {
+    setState(() {
+      _editingService = null;
+      _isAddingService = false;
+      _selectedIndex = 4;
+    });
+  }
+
   List<Widget> get _screens => [
-    const DashboardScreen(),
-    const AnalysisScreen(),
-    WorkersListScreen(onEdit: _onEditWorker, onAdd: _onAddWorker),
-    AddWorkerScreen(
-      initialWorker: _editingWorker,
-      onCancel: _resetWorkerEdit,
-    ),
-    const Center(child: Text('Roles & Skills')),
-    PropertiesScreen(onEdit: _onEditProperty),
-    PostListingScreen(
-      initialProperty: _editingProperty,
-      onComplete: _resetPropertyEdit,
-    ),
-    const EarningsScreen(),
-    const Center(child: Text('Reports')),
-    const Center(child: Text('Settings')),
-  ];
+        const DashboardScreen(),
+        const AnalysisScreen(),
+        WorkersListScreen(onEdit: _onEditWorker, onAdd: _onAddWorker),
+        AddWorkerScreen(
+          initialWorker: _editingWorker,
+          onCancel: _resetWorkerEdit,
+        ),
+        _isAddingService
+            ? AddServiceScreen(
+                initialService: _editingService,
+                onComplete: _resetServiceView,
+              )
+            : RolesSkillsScreen(
+                onEdit: _onEditService,
+                onAdd: _onAddService,
+              ),
+        PropertiesScreen(onEdit: _onEditProperty),
+        PostListingScreen(
+          initialProperty: _editingProperty,
+          onComplete: _resetPropertyEdit,
+        ),
+        const EarningsScreen(),
+        const Center(child: Text('Reports')),
+        const Center(child: Text('Settings')),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +123,10 @@ class _MainScreenState extends State<MainScreen> {
             _selectedIndex = index;
             if (index != 3) _editingWorker = null;
             if (index != 6) _editingProperty = null;
+            if (index != 4) {
+              _editingService = null;
+              _isAddingService = false;
+            }
           });
           Navigator.pop(context); // Close drawer on mobile
         },
@@ -121,6 +160,10 @@ class _MainScreenState extends State<MainScreen> {
               _selectedIndex = index;
               if (index != 3) _editingWorker = null;
               if (index != 6) _editingProperty = null;
+              if (index != 4) {
+                _editingService = null;
+                _isAddingService = false;
+              }
             });
           },
         ),

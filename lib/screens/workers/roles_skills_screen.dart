@@ -18,6 +18,8 @@ class RolesSkillsScreen extends StatefulWidget {
 class _RolesSkillsScreenState extends State<RolesSkillsScreen> {
   ServiceModel? _selectedServiceFilter;
   SubOption? _selectedSubOptionFilter;
+  int _currentPage = 0;
+  final int _rowsPerPage = 10;
 
   @override
   void initState() {
@@ -33,6 +35,13 @@ class _RolesSkillsScreenState extends State<RolesSkillsScreen> {
   Widget build(BuildContext context) {
     final serviceProvider = Provider.of<ServiceProvider>(context);
     final flattenedData = _getFlattenedData(serviceProvider.serviceDetails);
+    
+    // Manual Pagination Logic
+    final int totalRecords = flattenedData.length;
+    final int totalPages = (totalRecords / _rowsPerPage).ceil();
+    final int start = _currentPage * _rowsPerPage;
+    final int end = (start + _rowsPerPage < totalRecords) ? start + _rowsPerPage : totalRecords;
+    final paginatedData = flattenedData.isNotEmpty ? flattenedData.sublist(start, end) : [];
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -64,52 +73,78 @@ class _RolesSkillsScreenState extends State<RolesSkillsScreen> {
           _buildFilterBar(serviceProvider),
           const SizedBox(height: 24),
           
-          // Table Area - Expanded to take remaining space and fix crash
+          // Table Area - Stable DataTable with manual pagination
           Expanded(
             child: serviceProvider.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : flattenedData.isEmpty
                     ? const Center(child: Text('No records found'))
-                    : Card(
-                        elevation: 0,
-                        clipBehavior: Clip.antiAlias,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade200),
-                        ),
-                        child: Theme(
-                          data: Theme.of(context).copyWith(
-                            cardTheme: const CardThemeData(elevation: 0, margin: EdgeInsets.zero),
-                          ),
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(minWidth: 1100),
+                    : Column(
+                        children: [
+                          Expanded(
+                            child: Card(
+                              elevation: 0,
+                              clipBehavior: Clip.antiAlias,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: Colors.grey.shade200),
+                              ),
                               child: SingleChildScrollView(
                                 scrollDirection: Axis.vertical,
-                                child: PaginatedDataTable(
-                                  header: const Text('Inventory'),
-                                  rowsPerPage: 10,
-                                  columnSpacing: 30,
-                                  horizontalMargin: 20,
-                                  showFirstLastButtons: true,
-                                  columns: const [
-                                    DataColumn(label: Text('Service', style: TextStyle(fontWeight: FontWeight.bold))),
-                                    DataColumn(label: Text('Category', style: TextStyle(fontWeight: FontWeight.bold))),
-                                    DataColumn(label: Text('Sub-Category', style: TextStyle(fontWeight: FontWeight.bold))),
-                                    DataColumn(label: Text('Price', style: TextStyle(fontWeight: FontWeight.bold))),
-                                    DataColumn(label: Text('Time', style: TextStyle(fontWeight: FontWeight.bold))),
-                                    DataColumn(label: Text('Edit', style: TextStyle(fontWeight: FontWeight.bold))),
-                                  ],
-                                  source: _ServiceDetailsDataSource(
-                                    flattenedData,
-                                    onEdit: (details) => widget.onEdit?.call(details),
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(minWidth: 1100),
+                                    child: DataTable(
+                                      headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
+                                      columnSpacing: 30,
+                                      columns: const [
+                                        DataColumn(label: Text('Service', style: TextStyle(fontWeight: FontWeight.bold))),
+                                        DataColumn(label: Text('Category', style: TextStyle(fontWeight: FontWeight.bold))),
+                                        DataColumn(label: Text('Sub-Category', style: TextStyle(fontWeight: FontWeight.bold))),
+                                        DataColumn(label: Text('Price', style: TextStyle(fontWeight: FontWeight.bold))),
+                                        DataColumn(label: Text('Time', style: TextStyle(fontWeight: FontWeight.bold))),
+                                        DataColumn(label: Text('Edit', style: TextStyle(fontWeight: FontWeight.bold))),
+                                      ],
+                                      rows: paginatedData.map((row) {
+                                        return DataRow(cells: [
+                                          DataCell(SizedBox(width: 200, child: Text(row.detail.name, overflow: TextOverflow.ellipsis))),
+                                          DataCell(SizedBox(width: 200, child: Text(row.detail.category, overflow: TextOverflow.ellipsis))),
+                                          DataCell(SizedBox(width: 250, child: Text(row.sub?.subCategoryName ?? '-', overflow: TextOverflow.ellipsis))),
+                                          DataCell(SizedBox(width: 100, child: Text('₹${row.sub?.price ?? 0}'))),
+                                          DataCell(SizedBox(width: 150, child: Text(row.sub?.time ?? '-'))),
+                                          DataCell(IconButton(
+                                            icon: const Icon(Icons.edit, color: AppColors.accent, size: 20),
+                                            onPressed: () => widget.onEdit?.call(row.detail),
+                                          )),
+                                        ]);
+                                      }).toList(),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
+                          // Custom Pagination Footer
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Text('Page ${_currentPage + 1} of $totalPages (${totalRecords} items)'),
+                                const SizedBox(width: 16),
+                                IconButton(
+                                  icon: const Icon(Icons.chevron_left),
+                                  onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.chevron_right),
+                                  onPressed: _currentPage < totalPages - 1 ? () => setState(() => _currentPage++) : null,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
           ),
         ],
@@ -119,6 +154,7 @@ class _RolesSkillsScreenState extends State<RolesSkillsScreen> {
 
   Widget _buildFilterBar(ServiceProvider provider) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -198,6 +234,7 @@ class _RolesSkillsScreenState extends State<RolesSkillsScreen> {
                 serviceId: _selectedServiceFilter?.serviceId,
                 subOptionId: _selectedSubOptionFilter?.subOptionId,
               );
+              setState(() => _currentPage = 0); // Reset page on filter
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accent,
@@ -212,6 +249,7 @@ class _RolesSkillsScreenState extends State<RolesSkillsScreen> {
               setState(() {
                 _selectedServiceFilter = null;
                 _selectedSubOptionFilter = null;
+                _currentPage = 0;
               });
               provider.fetchServiceDetails();
             },
@@ -242,37 +280,4 @@ class _FlattenedDetailRow {
   final DetailedSubCategory? sub;
 
   _FlattenedDetailRow({required this.detail, this.sub});
-}
-
-class _ServiceDetailsDataSource extends DataTableSource {
-  final List<_FlattenedDetailRow> data;
-  final Function(ServiceDetails) onEdit;
-
-  _ServiceDetailsDataSource(this.data, {required this.onEdit});
-
-  @override
-  DataRow? getRow(int index) {
-    if (index >= data.length) return null;
-    final row = data[index];
-    return DataRow(cells: [
-      DataCell(SizedBox(width: 200, child: Text(row.detail.name, overflow: TextOverflow.ellipsis))),
-      DataCell(SizedBox(width: 200, child: Text(row.detail.category, overflow: TextOverflow.ellipsis))),
-      DataCell(SizedBox(width: 250, child: Text(row.sub?.subCategoryName ?? '-', overflow: TextOverflow.ellipsis))),
-      DataCell(SizedBox(width: 100, child: Text('₹${row.sub?.price ?? 0}'))),
-      DataCell(SizedBox(width: 150, child: Text(row.sub?.time ?? '-'))),
-      DataCell(IconButton(
-        icon: const Icon(Icons.edit, color: AppColors.accent, size: 20),
-        onPressed: () => onEdit(row.detail),
-      )),
-    ]);
-  }
-
-  @override
-  bool get isSelected => false;
-  @override
-  bool get isRowCountApproximate => false;
-  @override
-  int get rowCount => data.length;
-  @override
-  int get selectedRowCount => 0;
 }
